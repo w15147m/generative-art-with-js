@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generative Art Canvas</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<style>
+    body {
+    margin: 0;
+    overflow: hidden; /* Hide scrollbars */
+}
+
+canvas {
+    display: block; /* Remove default spacing */
+    background-color: #111; /* Dark background */
+}
+</style>
+<body>
+    <canvas id="myCanvas"></canvas>
+    <script src="script.js"></script>
+</body>
+<script>
+    // Get the canvas and its 2D rendering context
+const canvas = document.getElementById('myCanvas');
+const ctx = canvas.getContext('2d');
+
+// Set the canvas to fill the entire window
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+// Array of colors for our particles
+const colors = ['#FFBF00', '#FF7F50', '#DE3163', '#9FE2BF', '#40E0D0', '#6495ED'];
+
+// Particle class
+class Particle {
+    constructor(x, y, radius, color, vx, vy) {
+        this.x = x;
+        this.y = y;
+        this.radius = radius;
+        this.color = color;
+        this.vx = vx; // Velocity on x-axis
+        this.vy = vy; // Velocity on y-axis
+    }
+
+    // Draw the particle on the canvas
+    draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
+        ctx.fillStyle = this.color;
+        ctx.fill();
+        ctx.closePath();
+    }
+
+    // Update the particle's position and handle bouncing
+    update() {
+        // Reverse velocity if it hits horizontal edges
+        if (this.x + this.radius > canvas.width || this.x - this.radius < 0) {
+            this.vx = -this.vx;
+        }
+        // Reverse velocity if it hits vertical edges
+        if (this.y + this.radius > canvas.height || this.y - this.radius < 0) {
+            this.vy = -this.vy;
+        }
+        // Update position based on velocity
+        this.x += this.vx;
+        this.y += this.vy;
+
+        this.draw();
+    }
+}
+
+// Create an array to hold all particles
+let particles = [];
+
+// Initialize the particles
+function init() {
+    particles = []; // Clear the array
+    for (let i = 0; i < 100; i++) {
+        const radius = Math.random() * 10 + 5; // Random size
+        const x = Math.random() * (canvas.width - radius * 2) + radius;
+        const y = Math.random() * (canvas.height - radius * 2) + radius;
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const vx = (Math.random() - 0.5) * 4; // Random horizontal speed
+        const vy = (Math.random() - 0.5) * 4; // Random vertical speed
+
+        particles.push(new Particle(x, y, radius, color, vx, vy));
+    }
+}
+
+// The animation loop 🎨
+function animate() {
+    ctx.fillStyle = 'rgba(17, 17, 17, 0.1)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    particles.forEach(particle => {
+        particle.update();
+    });
+    requestAnimationFrame(animate);
+}
+init();
+animate();
+window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    init();
+});
+</script>
+</html>
