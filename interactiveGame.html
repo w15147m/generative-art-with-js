@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Line Sweeper Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000;
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        canvas {
+            border: 2px solid #333;
+            background: #000;
+        }
+        
+        .game-ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            font-size: 16px;
+            min-width: 250px;
+        }
+        
+        .score-display {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        
+        .player-score {
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        
+        .player1 { background: #4ecdc4; color: #000; }
+        .player2 { background: #ff6b6b; color: white; }
+        
+        .controls {
+            margin-top: 15px;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            display: none;
+            z-index: 20;
+        }
+        
+        .restart-btn {
+            background: #45b7d1;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+        
+        .restart-btn:hover {
+            background: #3a9bc1;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-ui">
+        <h2>Line Sweeper Game</h2>
+        <div class="score-display">
+            <div class="player-score player1">Player 1: <span id="score1">0</span></div>
+            <div class="player-score player2">Player 2: <span id="score2">0</span></div>
+        </div>
+        <div>Target: 100 Points</div>
+        <div class="controls">
+            <strong>Controls:</strong><br>
+            Player 1 (Cyan): WASD keys<br>
+            Player 2 (Red): Arrow keys<br><br>
+            <strong>How to Play:</strong><br>
+            Move your dot to position your orbiting sweeper to pass through opponent's lines and score points!
+        </div>
+    </div>
+    
+    <div class="game-over" id="gameOver">
+        <h2 id="winnerText">Player Wins!</h2>
+        <p>Final Scores:</p>
+        <p>Player 1: <span id="finalScore1">0</span> | Player 2: <span id="finalScore2">0</span></p>
+        <button class="restart-btn" onclick="restartGame()">Play Again</button>
+    </div>
+    
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Game settings
+        canvas.width = 800;
+        canvas.height = 600;
+        const gameArea = {
+            centerX: canvas.width / 2,
+            centerY: canvas.height / 2,
+            radius: Math.min(canvas.width, canvas.height) * 0.4
+        };
+        
+        // Game state
+        let gameRunning = true;
+        const targetScore = 100;
+        
+        // Player class
+        class Player {
+            constructor(x, y, color, controls) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.controls = controls;
+                this.score = 0;
+                this.radius = 8;
+                this.speed = 3;
+                
+                // Orbiting sweeper
+                this.sweeper = {
+                    angle: 0,
+                    distance: 40,
+                    speed: 0.05,
+                    radius: 4
+                };
+            }
+            
+            update(keys) {
+                // Handle movement
+                let dx = 0, dy = 0;
+                
+                if (keys[this.controls.up]) dy = -this.speed;
+                if (keys[this.controls.down]) dy = this.speed;
+                if (keys[this.controls.left]) dx = -this.speed;
+                if (keys[this.controls.right]) dx = this.speed;
+                
+                // Update position with boundary checking
+                const newX = this.x + dx;
+                const newY = this.y + dy;
+                const distFromCenter = Math.sqrt(
+                    (newX - gameArea.centerX) ** 2 + (newY - gameArea.centerY) ** 2
+                );
+                
+                if (distFromCenter <= gameArea.radius - this.radius) {
+                    this.x = newX;
+                    this.y = newY;
+                }
+                
+                // Update sweeper orbit
+                this.sweeper.angle += this.sweeper.speed;
+            }
+            
+            getSweepPosition() {
+                return {
+                    x: this.x + Math.cos(this.sweeper.angle) * this.sweeper.distance,
+                    y: this.y + Math.sin(this.sweeper.angle) * this.sweeper.distance
+                };
+            }
+            
+            draw() {
+                // Draw lines from player to edge
+                const numLines = 20;
+                ctx.strokeStyle = this.color + '60';
+                ctx.lineWidth = 1;
+                
+                for (let i = 0; i < numLines; i++) {
+                    const angle = (i / numLines) * Math.PI * 2;
+                    const endX = gameArea.centerX + Math.cos(angle) * gameArea.radius;
+                    const endY = gameArea.centerY + Math.sin(angle) * gameArea.radius;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, this.y);
+                    ctx.lineTo(endX, endY);
+                    ctx.stroke();
+                }
+                
+                // Draw main player dot
+                ctx.shadowColor = this.color;
+                ctx.shadowBlur = 15;
+                
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                
+                ctx.shadowBlur = 0;
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // Draw orbiting sweeper with better visibility
+                const sweeperPos = this.getSweepPosition();
+                
+                // Draw connection line from player to sweeper
+                ctx.strokeStyle = this.color + '40';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                ctx.lineTo(sweeperPos.x, sweeperPos.y);
+                ctx.stroke();
+                
+                // Draw sweeper with animation
+                ctx.shadowColor = '#ffffff';
+                ctx.shadowBlur = 15;
+                
+                ctx.beginPath();
+                ctx.arc(sweeperPos.x, sweeperPos.y, this.sweeper.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#ffffff';
+                ctx.fill();
+                
+                ctx.shadowBlur = 0;
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                
+                // Draw orbit path (more visible)
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.sweeper.distance, 0, Math.PI * 2);
+                ctx.strokeStyle = this.color + '20';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([5, 5]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+        }
+        
+        // Initialize players
+        const player1 = new Player(
+            gameArea.centerX - 80, 
+            gameArea.centerY, 
+            '#4ecdc4',
+            { up: 'KeyW', down: 'KeyS', left: 'KeyA', right: 'KeyD' }
+        );
+        
+        const player2 = new Player(
+            gameArea.centerX + 80, 
+            gameArea.centerY, 
+            '#ff6b6b',
+            { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight' }
+        );
+        
+        const players = [player1, player2];
+        
+        // Input handling
+        const keys = {};
+        window.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+        });
+        
+        window.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+        
+        // Collision detection for scoring
+        function checkLineIntersections() {
+            players.forEach((scorer, scorerIndex) => {
+                const sweeperPos = scorer.getSweepPosition();
+                const sweeperRadius = scorer.sweeper.radius;
+                
+                players.forEach((opponent, opponentIndex) => {
+                    if (scorerIndex === opponentIndex) return;
+                    
+                    // Check intersection with opponent's lines
+                    const numLines = 20;
+                    for (let i = 0; i < numLines; i++) {
+                        const angle = (i / numLines) * Math.PI * 2;
+                        const endX = gameArea.centerX + Math.cos(angle) * gameArea.radius;
+                        const endY = gameArea.centerY + Math.sin(angle) * gameArea.radius;
+                        
+                        // Simple line-circle intersection check
+                        const distToLine = distanceToLineSegment(
+                            sweeperPos.x, sweeperPos.y,
+                            opponent.x, opponent.y,
+                            endX, endY
+                        );
+                        
+                        if (distToLine < sweeperRadius + 2) {
+                            scorer.score += 0.5; // Small incremental scoring
+                        }
+                    }
+                });
+            });
+        }
+        
+        // Helper function for line-point distance
+        function distanceToLineSegment(px, py, x1, y1, x2, y2) {
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const length = Math.sqrt(dx * dx + dy * dy);
+            
+            if (length === 0) return Math.sqrt((px - x1) ** 2 + (py - y1) ** 2);
+            
+            const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / (length * length)));
+            const projX = x1 + t * dx;
+            const projY = y1 + t * dy;
+            
+            return Math.sqrt((px - projX) ** 2 + (py - projY) ** 2);
+        }
+        
+        // Game loop
+        function gameLoop() {
+            if (!gameRunning) return;
+            
+            // Clear canvas
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw game area boundary
+            ctx.beginPath();
+            ctx.arc(gameArea.centerX, gameArea.centerY, gameArea.radius, 0, Math.PI * 2);
+            ctx.strokeStyle = '#444';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Update players
+            players.forEach(player => player.update(keys));
+            
+            // Check for scoring
+            checkLineIntersections();
+            
+            // Draw players
+            players.forEach(player => player.draw());
+            
+            // Update score display
+            document.getElementById('score1').textContent = Math.floor(player1.score);
+            document.getElementById('score2').textContent = Math.floor(player2.score);
+            
+            // Check win condition
+            if (player1.score >= targetScore || player2.score >= targetScore) {
+                endGame();
+                return;
+            }
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function endGame() {
+            gameRunning = false;
+            const winner = player1.score >= targetScore ? 1 : 2;
+            
+            document.getElementById('winnerText').textContent = `Player ${winner} Wins!`;
+            document.getElementById('finalScore1').textContent = Math.floor(player1.score);
+            document.getElementById('finalScore2').textContent = Math.floor(player2.score);
+            document.getElementById('gameOver').style.display = 'block';
+        }
+        
+        function restartGame() {
+            gameRunning = true;
+            player1.score = 0;
+            player2.score = 0;
+            player1.x = gameArea.centerX - 80;
+            player1.y = gameArea.centerY;
+            player2.x = gameArea.centerX + 80;
+            player2.y = gameArea.centerY;
+            player1.sweeper.angle = 0;
+            player2.sweeper.angle = 0;
+            
+            document.getElementById('gameOver').style.display = 'none';
+            gameLoop();
+        }
+        
+        // Start the game
+        gameLoop();
+    </script>
+</body>
+</html>
