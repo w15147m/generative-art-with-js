@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radial Lines - Generative Art</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        
+        canvas {
+            display: block;
+            background: #000;
+        }
+        
+        .info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="info">
+        <h3>Radial Lines Animation</h3>
+        <p>Single particle with radiating lines</p>
+    </div>
+    
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas size
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        // Particle class
+        class Particle {
+            constructor(x, y, vx, vy, color, radius = 4) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.color = color;
+                this.radius = radius;
+            }
+            
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                
+                // Bounce off walls
+                if (this.x <= this.radius || this.x >= canvas.width - this.radius) {
+                    this.vx = -this.vx;
+                }
+                if (this.y <= this.radius || this.y >= canvas.height - this.radius) {
+                    this.vy = -this.vy;
+                }
+                
+                // Keep within bounds
+                this.x = Math.max(this.radius, Math.min(canvas.width - this.radius, this.x));
+                this.y = Math.max(this.radius, Math.min(canvas.height - this.radius, this.y));
+            }
+            
+            draw() {
+                // Draw the particle
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+        }
+        
+        // Create single particle
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const particle = new Particle(centerX, centerY, 2, 1.5, '#ff6b6b');
+        
+        function drawRadialLines() {
+            const numLines = 60;
+            const time = Date.now() * 0.001;
+            
+            ctx.strokeStyle = particle.color;
+            ctx.lineWidth = 1;
+            ctx.globalAlpha = 0.7;
+            
+            for (let i = 0; i < numLines; i++) {
+                const angle = (i / numLines) * Math.PI * 2 + time * 0.5;
+                const length = 150 + Math.sin(time * 2 + i * 0.2) * 80;
+                const endX = particle.x + Math.cos(angle) * length;
+                const endY = particle.y + Math.sin(angle) * length;
+                
+                // Create gradient effect
+                const opacity = 0.8 - (i % 10) * 0.08;
+                ctx.globalAlpha = opacity;
+                
+                ctx.beginPath();
+                ctx.moveTo(particle.x, particle.y);
+                ctx.lineTo(endX, endY);
+                ctx.stroke();
+            }
+            
+            ctx.globalAlpha = 1;
+        }
+        
+        // Animation loop
+        function animate() {
+            // Clear canvas with trail effect
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Update particle
+            particle.update();
+            
+            // Draw radial lines
+            drawRadialLines();
+            
+            // Draw particle
+            particle.draw();
+            
+            requestAnimationFrame(animate);
+        }
+        
+        // Start animation
+        animate();
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            // Reposition particle if it's outside new bounds
+            particle.x = Math.min(particle.x, canvas.width - particle.radius);
+            particle.y = Math.min(particle.y, canvas.height - particle.radius);
+        });
+    </script>
+</body>
+</html>

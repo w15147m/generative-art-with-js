@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edge Lines - Generative Art</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        
+        canvas {
+            display: block;
+            background: #000;
+        }
+        
+        .info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="info">
+        <h3>Edge Lines Animation</h3>
+        <p>Particles with lines extending in all directions</p>
+    </div>
+    
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas size
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        // Particle class
+        class Particle {
+            constructor(x, y, vx, vy, color, radius = 6) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.color = color;
+                this.radius = radius;
+                this.angle = Math.random() * Math.PI * 2;
+            }
+            
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.angle += 0.02;
+                
+                // Bounce off walls
+                if (this.x <= this.radius || this.x >= canvas.width - this.radius) {
+                    this.vx = -this.vx;
+                }
+                if (this.y <= this.radius || this.y >= canvas.height - this.radius) {
+                    this.vy = -this.vy;
+                }
+                
+                // Keep within bounds
+                this.x = Math.max(this.radius, Math.min(canvas.width - this.radius, this.x));
+                this.y = Math.max(this.radius, Math.min(canvas.height - this.radius, this.y));
+            }
+            
+            draw() {
+                // Draw particle with pulsing effect
+                const pulseSize = this.radius + Math.sin(Date.now() * 0.005 + this.angle) * 2;
+                
+                ctx.shadowColor = this.color;
+                ctx.shadowBlur = 20;
+                
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, pulseSize, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                
+                ctx.shadowBlur = 0;
+                
+                // Draw outer glow ring
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, pulseSize + 3, 0, Math.PI * 2);
+                ctx.strokeStyle = this.color + '80';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+            
+            drawEdgeLines() {
+                const numLines = 24;
+                const time = Date.now() * 0.001;
+                const maxLength = 400;
+                
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 1;
+                
+                for (let i = 0; i < numLines; i++) {
+                    const angle = (i / numLines) * Math.PI * 2 + this.angle + time * 0.3;
+                    const length = 100 + Math.sin(time * 1.5 + i * 0.3 + this.angle) * 150;
+                    const endX = this.x + Math.cos(angle) * length;
+                    const endY = this.y + Math.sin(angle) * length;
+                    
+                    // Create fading opacity based on line index
+                    const opacity = 0.6 - (i % 8) * 0.07;
+                    ctx.globalAlpha = opacity;
+                    
+                    // Create gradient for each line
+                    const gradient = ctx.createLinearGradient(
+                        this.x, this.y, endX, endY
+                    );
+                    gradient.addColorStop(0, this.color);
+                    gradient.addColorStop(1, this.color + '00');
+                    ctx.strokeStyle = gradient;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, this.y);
+                    ctx.lineTo(endX, endY);
+                    ctx.stroke();
+                }
+                
+                ctx.globalAlpha = 1;
+            }
+        }
+        
+        // Create particles
+        const particles = [];
+        const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57'];
+        
+        function createParticles() {
+            const numParticles = 4;
+            
+            for (let i = 0; i < numParticles; i++) {
+                const x = Math.random() * (canvas.width - 200) + 100;
+                const y = Math.random() * (canvas.height - 200) + 100;
+                const vx = (Math.random() - 0.5) * 2;
+                const vy = (Math.random() - 0.5) * 2;
+                const color = colors[i % colors.length];
+                
+                particles.push(new Particle(x, y, vx, vy, color));
+            }
+        }
+        
+        // Animation loop
+        function animate() {
+            // Clear canvas with trail effect
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.03)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Update and draw particles
+            particles.forEach(particle => {
+                particle.update();
+                particle.drawEdgeLines();
+                particle.draw();
+            });
+            
+            requestAnimationFrame(animate);
+        }
+        
+        // Initialize
+        createParticles();
+        animate();
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            // Reposition particles if they're outside new bounds
+            particles.forEach(particle => {
+                particle.x = Math.min(particle.x, canvas.width - particle.radius);
+                particle.y = Math.min(particle.y, canvas.height - particle.radius);
+            });
+        });
+        
+        // Add mouse interaction
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            particles.forEach(particle => {
+                const dx = mouseX - particle.x;
+                const dy = mouseY - particle.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < 150) {
+                    particle.vx += dx * 0.0001;
+                    particle.vy += dy * 0.0001;
+                }
+            });
+        });
+    </script>
+</body>
+</html>
